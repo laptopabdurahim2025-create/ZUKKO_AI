@@ -1,4 +1,9 @@
 import streamlit as st
+
+# ⚠️ Streamlit Secrets dan API keyni olish
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+
+# Bu yerda boshqa importlar keladi
 from openai import OpenAI
 import sqlite3
 import hashlib
@@ -89,7 +94,9 @@ add_user("admin", "admin123", "admin")
 
 class ZukkoEngine:
     def __init__(self):
+        from streamlit import secrets  # agar hali import qilinmagan bo‘lsa
         self.client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
+
 
     def generate(self, messages, system_prompt):
         full_history = [{"role": "system", "content": system_prompt}] + messages
