@@ -11,7 +11,11 @@ import time
 # ==========================================
 
 # ⚠️ GROQ KALITINI SHU YERGA QO'YASAN:
-API_KEY = "YOUR_GROQ_API_KEY_HERE"
+import streamlit as st
+
+# Streamlit Secrets dan API keyni olish
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+
 MODEL_NAME = "llama-3.3-70b-versatile"
 
 st.set_page_config(page_title="Zukko School AI", page_icon="🎓", layout="wide")
