@@ -89,7 +89,7 @@ add_user("admin", "admin123", "admin")
 
 class ZukkoEngine:
     def __init__(self):
-        self.client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
+        self.client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
 
     def generate(self, messages, system_prompt):
         full_history = [{"role": "system", "content": system_prompt}] + messages
