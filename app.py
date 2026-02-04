@@ -85,12 +85,10 @@ def view_logs():
 init_db()
 
 # Parolni faqat serverdan olamiz.
-# Agar serverda parol bo'lmasa, Admin umuman yaratilmaydi (yoki xato beradi).
 if "ADMIN_PASSWORD" in st.secrets:
     real_pass = st.secrets["ADMIN_PASSWORD"]
     add_user("admin", real_pass, "admin")
 else:
-    # Bu yerga hech narsa yozma yoki shunchaki print qil
     print("Diqqat: Admin paroli topilmadi!")
 
 # ==========================================
@@ -128,13 +126,13 @@ class ZukkoEngine:
             return str(e)
 
 # ==========================================
-# 🎨 DIZAYN (TUZATILGAN CSS)
+# 🎨 DIZAYN (CSS)
 # ==========================================
 st.markdown("""
 <style>
-    /* Dashboard Kartochkalari - Universal Ranglar */
+    /* Dashboard Kartochkalari */
     .metric-card {
-        background-color: rgba(128, 128, 128, 0.1); /* Shaffof kulrang */
+        background-color: rgba(128, 128, 128, 0.1);
         padding: 20px;
         border-radius: 10px;
         border: 1px solid rgba(128, 128, 128, 0.2);
@@ -142,23 +140,16 @@ st.markdown("""
         margin-bottom: 10px;
     }
     
-    /* Sidebar matnlarini majburan oq qilishni OLIB TASHLADIM. 
-       Endi Streamlit o'zi hal qiladi (Darkda oq, Lightda qora bo'ladi) */
-       
-    /* Chat Pufakchalari (Bubbles) */
+    /* Chat Pufakchalari */
     .stChatMessage {
         background-color: transparent;
         border: 1px solid rgba(128, 128, 128, 0.2);
     }
-    
-    /* Foydalanuvchi xabari */
     div[data-testid="stChatMessage"][data-author="user"] {
-        background-color: rgba(76, 175, 80, 0.1); /* Och yashil fon */
+        background-color: rgba(76, 175, 80, 0.1);
     }
-    
-    /* AI xabari */
     div[data-testid="stChatMessage"][data-author="assistant"] {
-        background-color: rgba(33, 150, 243, 0.1); /* Och ko'k fon */
+        background-color: rgba(33, 150, 243, 0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -189,7 +180,6 @@ def show_dashboard(username):
         """, unsafe_allow_html=True)
 
     with col3:
-        # Rolni chiroyli ko'rsatish
         role_display = "Admin 🛡️" if st.session_state.role == "admin" else "O'quvchi 🎓"
         st.markdown(f"""
         <div class="metric-card">
@@ -203,7 +193,7 @@ def show_dashboard(username):
     quotes = [
         "Bilim — bu kuch! 🚀",
         "Kodni xato qilishdan qo'rqma, xato — bu ustoz. 💻",
-        "Bugun kechagidan yaxshiroq bo'lishga harakat qiling. ⭐",
+        "Har bir rasm mingta so'zga teng. 🎨",
         "Kelajak bugun yaratiladi. 🔥"
     ]
     st.info(f"💡 **Kun hikmati:** {random.choice(quotes)}")
@@ -211,7 +201,7 @@ def show_dashboard(username):
     with st.expander("ℹ️ Loyiha haqida"):
         st.write("""
         **Zukko AI** — bu O'zbekistondagi eng zamonaviy ta'lim yordamchisi.
-        Admin Panel va Sun'iy Intellekt integratsiyasi.
+        Endi AI Rassom funksiyasi bilan!
         """)
 
 # ==========================================
@@ -237,8 +227,8 @@ def main():
                 result = login_user(username, password)
                 if result:
                     st.session_state.logged_in = True
-                    st.session_state.username = result[0][0] # Bazadagi to'g'ri nom
-                    st.session_state.role = result[0][2]     # Bazadagi rol
+                    st.session_state.username = result[0][0] 
+                    st.session_state.role = result[0][2]     
                     add_log(username, "Kirdi")
                     st.rerun()
                 else:
@@ -261,8 +251,8 @@ def main():
             st.title("Zukko AI")
             st.caption(f"Foydalanuvchi: {st.session_state.username}")
             
-            # Navigatsiya
-            page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🛡️ Admin Panel"])
+            # Navigatsiya (YANGI BO'LIM QO'SHILDI)
+            page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🎨 AI Rassom", "🛡️ Admin Panel"])
             
             st.markdown("---")
             if st.button("Chiqish 🚪"):
@@ -275,20 +265,37 @@ def main():
 
         # 2. ADMIN PANEL
         elif page == "🛡️ Admin Panel":
-            # Admin ekanligini tekshirish (aniq tekshirish)
             if st.session_state.role == "admin":
                 st.header("🛡️ Admin Boshqaruv Paneli")
-                
                 tab_users, tab_logs = st.tabs(["Foydalanuvchilar", "Loglar"])
                 with tab_users:
                     st.dataframe(view_all_users(), use_container_width=True)
                 with tab_logs:
                     st.dataframe(view_logs(), use_container_width=True)
             else:
-                st.error("⛔ Siz Admin emassiz! Bu bo'limga kirish taqiqlangan.")
-                st.image("https://cdn-icons-png.flaticon.com/512/6897/6897039.png", width=100)
+                st.error("⛔ Siz Admin emassiz!")
 
-        # 3. AI CHAT
+        # 3. AI RASSOM (YANGI FUNKSIYA) 🎨
+        elif page == "🎨 AI Rassom":
+            st.header("🎨 AI Rassom")
+            st.caption("Tasavvuringizni yozing, sun'iy intellekt uni chizib beradi!")
+            
+            img_prompt = st.text_input("Nima chizishni xohlaysiz?", placeholder="Masalan: Oydagi futbol maydoni, kiberpank mushuk...")
+            
+            if st.button("Chizish 🖌️"):
+                if img_prompt:
+                    with st.spinner("Rasm chizilmoqda... (Biroz kuting)"):
+                        # Pollinations AI dan foydalanamiz (Bepul)
+                        # Bo'sh joylarni %20 ga almashtiramiz
+                        prompt_url = img_prompt.replace(" ", "%20")
+                        image_url = f"https://image.pollinations.ai/prompt/{prompt_url}"
+                        
+                        st.image(image_url, caption=f"Natija: {img_prompt}", use_container_width=True)
+                        add_log(st.session_state.username, f"Rasm chizdi: {img_prompt}")
+                else:
+                    st.warning("Iltimos, avval biror narsa yozing!")
+
+        # 4. AI CHAT
         elif page == "🤖 AI Chat":
             st.subheader("🤖 AI bilan suhbat")
             
@@ -306,7 +313,6 @@ def main():
             
             if "messages" not in st.session_state: st.session_state.messages = []
             
-            # Tugmalar paneli
             col1, col2 = st.columns([1, 4])
             with col1:
                 if st.button("🗑️ Tozalash"):
@@ -316,12 +322,10 @@ def main():
                 if st.button("📝 Test tuzish"):
                     st.session_state.messages.append({"role": "user", "content": "Mavzu bo'yicha 3 ta test tuzib ber."})
 
-            # Chat tarixi
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
 
-            # Input
             if prompt := st.chat_input("Yozing..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"): st.markdown(prompt)
