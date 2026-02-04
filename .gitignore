@@ -1,0 +1,4 @@
+.streamlit/secrets.toml
+zukko_school.db
+__pycache__/
+fix_admin.py

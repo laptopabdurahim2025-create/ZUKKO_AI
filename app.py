@@ -83,8 +83,15 @@ def view_logs():
     return df
 
 init_db()
-# Adminni majburiy yaratish (agar bo'lmasa)
-add_user("admin", "admin123", "admin")
+
+# Parolni faqat serverdan olamiz.
+# Agar serverda parol bo'lmasa, Admin umuman yaratilmaydi (yoki xato beradi).
+if "ADMIN_PASSWORD" in st.secrets:
+    real_pass = st.secrets["ADMIN_PASSWORD"]
+    add_user("admin", real_pass, "admin")
+else:
+    # Bu yerga hech narsa yozma yoki shunchaki print qil
+    print("Diqqat: Admin paroli topilmadi!")
 
 # ==========================================
 # 🎵 OVOZ FUNKSIYASI
