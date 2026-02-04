@@ -1,25 +1,24 @@
 import streamlit as st
+import io
 
 # ⚠️ Streamlit Secrets dan API keyni olish
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+try:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    st.error("GROQ_API_KEY topilmadi! .streamlit/secrets.toml faylini tekshiring.")
+    st.stop()
 
-# Bu yerda boshqa importlar keladi
+# ==========================================
+# ➕ YANGI KUTUBXONALAR (QO'SHILDI)
+# ==========================================
 from openai import OpenAI
 import sqlite3
 import hashlib
 import datetime
 import pandas as pd
 import time
-
-# ==========================================
-# ⚙️ SOZLAMALAR
-# ==========================================
-
-# ⚠️ GROQ KALITINI SHU YERGA QO'YASAN:
-import streamlit as st
-
-# Streamlit Secrets dan API keyni olish
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+from PyPDF2 import PdfReader # PDF o'qish uchun
+from gtts import gTTS # Ovozga aylantirish uchun
 
 MODEL_NAME = "llama-3.3-70b-versatile"
 
@@ -85,8 +84,30 @@ def view_logs():
     return df
 
 init_db()
-# Adminni avtomatik yaratish (Login: admin / Parol: admin123)
 add_user("admin", "admin123", "admin") 
+
+# ==========================================
+# ➕ YANGI YORDAMCHI FUNKSIYALAR (QO'SHILDI)
+# ==========================================
+
+def get_pdf_text(pdf_file):
+    """PDF fayldan matnni sug'urib olish"""
+    text = ""
+    pdf_reader = PdfReader(pdf_file)
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
+
+def text_to_audio(text):
+    """Matnni ovozli faylga aylantirish (gTTS)"""
+    # gTTS o'zbek tilini 'tr' (turkcha) intonatsiyasiga yaqin o'qiydi yoki 'en'
+    try:
+        tts = gTTS(text=text, lang='tr', slow=False) 
+        audio_bytes = io.BytesIO()
+        tts.write_to_fp(audio_bytes)
+        return audio_bytes
+    except:
+        return None
 
 # ==========================================
 # 🧠 AI ENGINE
@@ -94,9 +115,7 @@ add_user("admin", "admin123", "admin")
 
 class ZukkoEngine:
     def __init__(self):
-        from streamlit import secrets  # agar hali import qilinmagan bo‘lsa
         self.client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
-
 
     def generate(self, messages, system_prompt):
         full_history = [{"role": "system", "content": system_prompt}] + messages
@@ -122,6 +141,12 @@ st.markdown("""
     .stSidebar { background-color: #1e3a8a; }
     .stSidebar .stMarkdown { color: white; }
     div[data-testid="stSidebarUserContent"] { color: white; }
+    /* Quiz tugmasi uchun */
+    .stButton>button {
+        background-color: #4CAF50; 
+        color: white; 
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -173,11 +198,21 @@ def main():
         with st.sidebar:
             st.info(f"👤 Foydalanuvchi: {st.session_state.username}")
             
-            # Agar Admin bo'lsa, ikkita rejim chiqadi
             if st.session_state.role == "admin":
                 app_mode = st.radio("Rejim:", ["🤖 AI Chat", "🛡️ Admin Panel"])
             else:
                 app_mode = "🤖 AI Chat"
+
+            st.markdown("---")
+            
+            # ➕ PDF YUKLASH QISMI (QO'SHILDI)
+            st.markdown("### 📂 Kitob Yuklash (PDF)")
+            uploaded_file = st.file_uploader("Darslikni yuklang", type="pdf")
+            pdf_text = ""
+            if uploaded_file is not None:
+                with st.spinner("PDF o'qilmoqda..."):
+                    pdf_text = get_pdf_text(uploaded_file)
+                st.success("Kitob yuklandi! Endi shu bo'yicha savol bering.")
 
             st.markdown("---")
             if st.button("Chiqish"):
@@ -198,59 +233,65 @@ def main():
 
         # --- AI CHAT (MAKTAB + UNIVERSAL) ---
         elif app_mode == "🤖 AI Chat":
-            # YANGI RO'YXAT: UNIVERSAL + SINFLAR
             mode_choice = st.selectbox("Mavzuni tanlang:", 
                 ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"]
             )
             
-            # Promptlar bazasi
             prompts = {
                 "🌐 Universal Yordamchi": {
                     "role": "Super Intellekt",
-                    "desc": "Istalgan mavzuda suhbat: Dasturlash, Sport, Kino, Maslahatlar...",
-                    "prompt": "Sen Zukko AIsan. Sen O'zbekistondagi eng aqlli sun'iy intellektsan. Foydalanuvchi nima haqida so'rasa (xoh u fizika bo'lsin, xoh bugungi ob-havo, xoh shunchaki dardlashish), o'sha mavzuda aniq, londa va do'stona javob ber."
+                    "desc": "Istalgan mavzuda suhbat...",
+                    "prompt": "Sen Zukko AIsan. Foydalanuvchi nima haqida so'rasa aniq javob ber."
                 },
                 "1-sinf": {
                     "role": "Boshlang'ich O'qituvchi",
-                    "desc": "Alifbo va o'qishni o'rganamiz.",
-                    "prompt": "Sen mehribon o'qituvchisan. 1-sinf bolasiga oddiy so'zlar bilan tushuntir. Ko'p emoji ishlat."
+                    "desc": "Alifbo va o'qish.",
+                    "prompt": "Sen mehribon o'qituvchisan. 1-sinf bolasiga sodda tushuntir. Ko'p emoji ishlat."
                 },
                 "2-sinf": {
                     "role": "Matematika Ustoz",
-                    "desc": "Qo'shish, ayirish, karra jadvali.",
-                    "prompt": "Sen matematika o'qituvchisisan. Bolalarga hisob-kitobni qiziqarli o'rgat."
+                    "desc": "Qo'shish, ayirish, karra.",
+                    "prompt": "Sen matematika o'qituvchisisan. Hisob-kitobni qiziqarli o'rgat."
                 },
                 "3-sinf": {
                     "role": "Tabiatshunos",
-                    "desc": "Hayvonlar va Olam sirlari.",
-                    "prompt": "Tabiatshunoslik o'qituvchisi sifatida bolalarga dunyo sirlarini ochib ber."
+                    "desc": "Hayvonlar va Olam.",
+                    "prompt": "Tabiatshunoslik o'qituvchisi sifatida dunyo sirlarini ochib ber."
                 },
                 "4-sinf": {
                     "role": "Ingliz tili & IT",
-                    "desc": "Til va Kompyuter savodxonligi.",
-                    "prompt": "4-sinf o'quvchisiga ingliz tili va kompyuter texnologiyalarini o'rgat."
+                    "desc": "Til va Kompyuter.",
+                    "prompt": "4-sinf o'quvchisiga ingliz tili va kompyuterni o'rgat."
                 }
             }
 
             current = prompts[mode_choice]
             
-            # Ekranga chiroyli ma'lumot chiqarish
+            # ➕ PDF TEXTNI PROMPTGA QO'SHISH
+            final_system_prompt = current['prompt']
+            if pdf_text:
+                final_system_prompt += f"\n\nDIQQAT: Foydalanuvchi quyidagi kitobni yukladi. Javob berishda mana shu ma'lumotdan foydalan:\n{pdf_text[:4000]}..." 
+            
             st.success(f"📌 **Rejim:** {current['role']} | ℹ️ **Tavsif:** {current['desc']}")
 
             if "messages" not in st.session_state:
                 st.session_state.messages = []
 
-            # Tozalash tugmasi
-            if st.sidebar.button("Tozalash"):
-                st.session_state.messages = []
-                st.rerun()
+            # ➕ QUIZ (TEST) TUGMASI (QO'SHILDI)
+            col_q1, col_q2 = st.columns([1, 4])
+            with col_q1:
+                if st.button("📝 Test tuzish"):
+                    prompt = "Menga hozirgi mavzu yoki umumiy bilim bo'yicha 3 ta qiziqarli test tuzib ber (A, B, C variantlari bilan)."
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+            with col_q2:
+                if st.sidebar.button("Tozalash"):
+                    st.session_state.messages = []
+                    st.rerun()
 
-            # Chatni chiqarish
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
 
-            # Input
             if prompt := st.chat_input("Savolingizni yozing..."):
                 add_log(st.session_state.username, f"Chat ({mode_choice}): {prompt[:15]}...")
                 
@@ -262,7 +303,7 @@ def main():
                     engine = ZukkoEngine()
                     placeholder = st.empty()
                     full_text = ""
-                    stream = engine.generate(st.session_state.messages, current['prompt'])
+                    stream = engine.generate(st.session_state.messages, final_system_prompt)
                     
                     if isinstance(stream, str):
                         st.error(stream)
@@ -272,6 +313,13 @@ def main():
                                 full_text += chunk.choices[0].delta.content
                                 placeholder.markdown(full_text + "▌")
                         placeholder.markdown(full_text)
+                        
+                        # ➕ OVOZLI REJIM (TTS) QO'SHILDI
+                        # Javob to'liq bo'lgach, ovoz chiqarish tugmasi chiqadi
+                        audio_data = text_to_audio(full_text)
+                        if audio_data:
+                            st.audio(audio_data, format="audio/mp3")
+
                 
                 st.session_state.messages.append({"role": "assistant", "content": full_text})
 
