@@ -1,12 +1,13 @@
 import streamlit as st
 import io
 import random
+import requests # <--- YANGI KUTUBXONA
+import time
+
 # ⚠️ Streamlit Secrets dan API keyni olish
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except:
-    # Agar lokalda ishlatayotgan bo'lsangiz va xato bersa, shunchaki pastdagi qatorni ochib, kalitni yozing:
-    # GROQ_API_KEY = "gsk_..." 
     st.error("GROQ_API_KEY topilmadi! .streamlit/secrets.toml faylini tekshiring.")
     st.stop()
 
@@ -38,7 +39,6 @@ def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def add_user(username, password, role="student"):
-    # Har doim kichik harfda saqlaymiz
     username = username.lower().strip()
     conn = sqlite3.connect('zukko_school.db')
     c = conn.cursor()
@@ -84,12 +84,9 @@ def view_logs():
 
 init_db()
 
-# Parolni faqat serverdan olamiz.
 if "ADMIN_PASSWORD" in st.secrets:
     real_pass = st.secrets["ADMIN_PASSWORD"]
     add_user("admin", real_pass, "admin")
-else:
-    print("Diqqat: Admin paroli topilmadi!")
 
 # ==========================================
 # 🎵 OVOZ FUNKSIYASI
@@ -101,6 +98,29 @@ def text_to_audio(text):
         audio_bytes = io.BytesIO()
         tts.write_to_fp(audio_bytes)
         return audio_bytes
+    except:
+        return None
+
+# ==========================================
+# 🎨 RASSOM FUNKSIYASI (YANGILANGAN)
+# ==========================================
+def generate_image(prompt):
+    """
+    Rasm yaratish uchun Pollinations AI API dan foydalanamiz.
+    Bu safar requests orqali to'g'ridan-to'g'ri yuklab olamiz.
+    """
+    # Promptdagi bo'sh joylarni to'g'irlash
+    final_prompt = prompt.replace(" ", "%20")
+    # Tasodifiy raqam qo'shamiz (keshlanib qolmasligi uchun)
+    seed = random.randint(1, 10000)
+    url = f"https://image.pollinations.ai/prompt/{final_prompt}?nospam={seed}"
+    
+    try:
+        response = requests.get(url, timeout=10) # 10 soniya kutamiz
+        if response.status_code == 200:
+            return response.content # Rasmning bayt kodi
+        else:
+            return None
     except:
         return None
 
@@ -130,7 +150,6 @@ class ZukkoEngine:
 # ==========================================
 st.markdown("""
 <style>
-    /* Dashboard Kartochkalari */
     .metric-card {
         background-color: rgba(128, 128, 128, 0.1);
         padding: 20px;
@@ -139,8 +158,6 @@ st.markdown("""
         text-align: center;
         margin-bottom: 10px;
     }
-    
-    /* Chat Pufakchalari */
     .stChatMessage {
         background-color: transparent;
         border: 1px solid rgba(128, 128, 128, 0.2);
@@ -155,54 +172,19 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🏠 DASHBOARD SAHIFASI
+# 🏠 DASHBOARD
 # ==========================================
 def show_dashboard(username):
     st.header(f"👋 Xush kelibsiz, {username.title()}!")
     st.markdown("---")
-
     col1, col2, col3 = st.columns(3)
-    
     with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>📅 Bugungi Sana</h3>
-            <h2>{datetime.datetime.now().strftime("%d-%m-%Y")}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f"""<div class="metric-card"><h3>📅 Sana</h3><h2>{datetime.datetime.now().strftime("%d-%m-%Y")}</h2></div>""", unsafe_allow_html=True)
     with col2:
-        st.markdown("""
-        <div class="metric-card">
-            <h3>⚡ Status</h3>
-            <h2>Online</h2>
-        </div>
-        """, unsafe_allow_html=True)
-
+        st.markdown("""<div class="metric-card"><h3>⚡ Status</h3><h2>Online</h2></div>""", unsafe_allow_html=True)
     with col3:
         role_display = "Admin 🛡️" if st.session_state.role == "admin" else "O'quvchi 🎓"
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>🏆 Rolingiz</h3>
-            <h2>{role_display}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    
-    quotes = [
-        "Bilim — bu kuch! 🚀",
-        "Kodni xato qilishdan qo'rqma, xato — bu ustoz. 💻",
-        "Har bir rasm mingta so'zga teng. 🎨",
-        "Kelajak bugun yaratiladi. 🔥"
-    ]
-    st.info(f"💡 **Kun hikmati:** {random.choice(quotes)}")
-
-    with st.expander("ℹ️ Loyiha haqida"):
-        st.write("""
-        **Zukko AI** — bu O'zbekistondagi eng zamonaviy ta'lim yordamchisi.
-        Endi AI Rassom funksiyasi bilan!
-        """)
+        st.markdown(f"""<div class="metric-card"><h3>🏆 Rolingiz</h3><h2>{role_display}</h2></div>""", unsafe_allow_html=True)
 
 # ==========================================
 # 🖥️ ASOSIY DASTUR
@@ -214,12 +196,9 @@ def main():
         st.session_state.username = ""
         st.session_state.role = ""
 
-    # --- LOGIN OYNASI ---
     if not st.session_state.logged_in:
         st.title("🎓 Zukko AI Kirish")
-        
         tab1, tab2 = st.tabs(["Kirish", "Ro'yxatdan o'tish"])
-        
         with tab1:
             username = st.text_input("Login", key="login_user")
             password = st.text_input("Parol", type='password', key="login_pass")
@@ -232,99 +211,83 @@ def main():
                     add_log(username, "Kirdi")
                     st.rerun()
                 else:
-                    st.error("Login yoki parol xato!")
-
+                    st.error("Login xato!")
         with tab2:
             new_user = st.text_input("Yangi Login", key="reg_user")
             new_pass = st.text_input("Yangi Parol", type='password', key="reg_pass")
             if st.button("Yaratish"):
                 if add_user(new_user, new_pass):
-                    st.success("Yaratildi! Endi 'Kirish' bo'limidan kiring.")
+                    st.success("Yaratildi!")
                     add_log(new_user, "Ro'yxatdan o'tdi")
                 else:
-                    st.error("Bu login band!")
+                    st.error("Login band!")
 
-    # --- TIZIM ICHIDA ---
     else:
-        # Sidebar
         with st.sidebar:
             st.title("Zukko AI")
             st.caption(f"Foydalanuvchi: {st.session_state.username}")
-            
-            # Navigatsiya (YANGI BO'LIM QO'SHILDI)
             page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🎨 AI Rassom", "🛡️ Admin Panel"])
-            
             st.markdown("---")
             if st.button("Chiqish 🚪"):
                 st.session_state.logged_in = False
                 st.rerun()
 
-        # 1. DASHBOARD
         if page == "🏠 Dashboard":
             show_dashboard(st.session_state.username)
 
-        # 2. ADMIN PANEL
         elif page == "🛡️ Admin Panel":
             if st.session_state.role == "admin":
-                st.header("🛡️ Admin Boshqaruv Paneli")
-                tab_users, tab_logs = st.tabs(["Foydalanuvchilar", "Loglar"])
-                with tab_users:
-                    st.dataframe(view_all_users(), use_container_width=True)
-                with tab_logs:
-                    st.dataframe(view_logs(), use_container_width=True)
+                st.header("🛡️ Admin Panel")
+                st.dataframe(view_all_users(), use_container_width=True)
+                st.dataframe(view_logs(), use_container_width=True)
             else:
                 st.error("⛔ Siz Admin emassiz!")
 
-        # 3. AI RASSOM (YANGI FUNKSIYA) 🎨
+        # --- YANGILANGAN RASSOM ---
         elif page == "🎨 AI Rassom":
             st.header("🎨 AI Rassom")
-            st.caption("Tasavvuringizni yozing, sun'iy intellekt uni chizib beradi!")
+            st.info("Istalgan narsani yozing, sun'iy intellekt chizib beradi.")
             
-            img_prompt = st.text_input("Nima chizishni xohlaysiz?", placeholder="Masalan: Oydagi futbol maydoni, kiberpank mushuk...")
+            img_prompt = st.text_input("Nima chizamiz?", placeholder="Masalan: Future city, Flying cat...")
             
             if st.button("Chizish 🖌️"):
                 if img_prompt:
-                    with st.spinner("Rasm chizilmoqda... (Biroz kuting)"):
-                        # Pollinations AI dan foydalanamiz (Bepul)
-                        # Bo'sh joylarni %20 ga almashtiramiz
-                        prompt_url = img_prompt.replace(" ", "%20")
-                        image_url = f"https://image.pollinations.ai/prompt/{prompt_url}"
+                    with st.spinner("Rasm chizilmoqda..."):
+                        # Yangi funksiya orqali chaqiramiz
+                        image_data = generate_image(img_prompt)
                         
-                        st.image(image_url, caption=f"Natija: {img_prompt}", use_container_width=True)
-                        add_log(st.session_state.username, f"Rasm chizdi: {img_prompt}")
+                        if image_data:
+                            st.image(image_data, caption=f"Natija: {img_prompt}", use_container_width=True)
+                            add_log(st.session_state.username, f"Rasm chizdi: {img_prompt}")
+                            st.balloons() # Muvaffaqiyatli bo'lsa sharlar chiqadi
+                        else:
+                            st.error("Uzr, rasm chizishda xatolik bo'ldi. Qayta urinib ko'ring.")
                 else:
                     st.warning("Iltimos, avval biror narsa yozing!")
 
-        # 4. AI CHAT
         elif page == "🤖 AI Chat":
             st.subheader("🤖 AI bilan suhbat")
-            
-            mode_choice = st.selectbox("Mavzuni tanlang:", 
-                ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"]
-            )
-            
+            mode_choice = st.selectbox("Mavzu:", ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"])
             prompts = {
-                "🌐 Universal Yordamchi": {"role": "AI", "prompt": "Sen Zukko AIsan. Do'stona yordamchisan."},
-                "1-sinf": {"role": "O'qituvchi", "prompt": "Sen 1-sinf o'qituvchisisan. Oddiy gapir."},
+                "🌐 Universal Yordamchi": {"role": "AI", "prompt": "Sen Zukko AIsan."},
+                "1-sinf": {"role": "O'qituvchi", "prompt": "1-sinf bolaga sodda gapir."},
                 "2-sinf": {"role": "Matematik", "prompt": "Matematika o'rgat."},
                 "3-sinf": {"role": "Tabiatshunos", "prompt": "Tabiat haqida gapir."},
-                "4-sinf": {"role": "IT Ustoz", "prompt": "Ingliz tili va IT o'rgat."}
+                "4-sinf": {"role": "IT Ustoz", "prompt": "IT o'rgat."}
             }
-            
             if "messages" not in st.session_state: st.session_state.messages = []
             
-            col1, col2 = st.columns([1, 4])
-            with col1:
+            c1, c2 = st.columns([1, 4])
+            with c1:
                 if st.button("🗑️ Tozalash"):
                     st.session_state.messages = []
                     st.rerun()
-            with col2:
-                if st.button("📝 Test tuzish"):
-                    st.session_state.messages.append({"role": "user", "content": "Mavzu bo'yicha 3 ta test tuzib ber."})
+            with c2:
+                if st.button("📝 Test"):
+                    st.session_state.messages.append({"role": "user", "content": "3 ta test tuz."})
 
             for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
+                with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
             if prompt := st.chat_input("Yozing..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
@@ -344,10 +307,8 @@ def main():
                                 full_text += chunk.choices[0].delta.content
                                 placeholder.markdown(full_text + "▌")
                         placeholder.markdown(full_text)
-                        
                         audio = text_to_audio(full_text)
                         if audio: st.audio(audio, format="audio/mp3")
-                
                 st.session_state.messages.append({"role": "assistant", "content": full_text})
 
 if __name__ == "__main__":
