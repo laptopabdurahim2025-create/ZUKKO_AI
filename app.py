@@ -5,6 +5,8 @@ import random
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except:
+    # Agar lokalda ishlatayotgan bo'lsangiz va xato bersa, shunchaki pastdagi qatorni ochib, kalitni yozing:
+    # GROQ_API_KEY = "gsk_..." 
     st.error("GROQ_API_KEY topilmadi! .streamlit/secrets.toml faylini tekshiring.")
     st.stop()
 
@@ -13,7 +15,7 @@ import sqlite3
 import hashlib
 import datetime
 import pandas as pd
-from gtts import gTTS # Ovoz uchun
+from gtts import gTTS
 
 MODEL_NAME = "llama-3.3-70b-versatile"
 
@@ -36,6 +38,8 @@ def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def add_user(username, password, role="student"):
+    # Har doim kichik harfda saqlaymiz
+    username = username.lower().strip()
     conn = sqlite3.connect('zukko_school.db')
     c = conn.cursor()
     try:
@@ -49,6 +53,7 @@ def add_user(username, password, role="student"):
         conn.close()
 
 def login_user(username, password):
+    username = username.lower().strip()
     conn = sqlite3.connect('zukko_school.db')
     c = conn.cursor()
     c.execute('SELECT * FROM users WHERE username =? AND password = ?', 
@@ -78,6 +83,7 @@ def view_logs():
     return df
 
 init_db()
+# Adminni majburiy yaratish (agar bo'lmasa)
 add_user("admin", "admin123", "admin")
 
 # ==========================================
@@ -85,7 +91,6 @@ add_user("admin", "admin123", "admin")
 # ==========================================
 def text_to_audio(text):
     try:
-        # Qisqa javoblar uchun tezroq ishlashi uchun
         if len(text) > 500: text = text[:500] + "..." 
         tts = gTTS(text=text, lang='tr', slow=False) 
         audio_bytes = io.BytesIO()
@@ -116,37 +121,37 @@ class ZukkoEngine:
             return str(e)
 
 # ==========================================
-# 🎨 DIZAYN (CSS)
+# 🎨 DIZAYN (TUZATILGAN CSS)
 # ==========================================
 st.markdown("""
 <style>
-    /* Asosiy fon */
-    .stApp { background-color: #f8f9fa; }
-    
-    /* Dashboard kartochkalari */
+    /* Dashboard Kartochkalari - Universal Ranglar */
     .metric-card {
-        background-color: white;
+        background-color: rgba(128, 128, 128, 0.1); /* Shaffof kulrang */
         padding: 20px;
         border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border: 1px solid rgba(128, 128, 128, 0.2);
         text-align: center;
-        border-left: 5px solid #4CAF50;
+        margin-bottom: 10px;
     }
-    .metric-card h3 { color: #888; font-size: 16px; margin: 0;}
-    .metric-card h2 { color: #333; font-size: 28px; margin: 10px 0;}
     
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #1e293b;
-        color: white;
-    }
-    .stSidebar .stMarkdown { color: white; }
-    
-    /* Chat bubbles */
+    /* Sidebar matnlarini majburan oq qilishni OLIB TASHLADIM. 
+       Endi Streamlit o'zi hal qiladi (Darkda oq, Lightda qora bo'ladi) */
+       
+    /* Chat Pufakchalari (Bubbles) */
     .stChatMessage {
-        border-radius: 15px;
-        background-color: white;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        background-color: transparent;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+    }
+    
+    /* Foydalanuvchi xabari */
+    div[data-testid="stChatMessage"][data-author="user"] {
+        background-color: rgba(76, 175, 80, 0.1); /* Och yashil fon */
+    }
+    
+    /* AI xabari */
+    div[data-testid="stChatMessage"][data-author="assistant"] {
+        background-color: rgba(33, 150, 243, 0.1); /* Och ko'k fon */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -155,39 +160,39 @@ st.markdown("""
 # 🏠 DASHBOARD SAHIFASI
 # ==========================================
 def show_dashboard(username):
-    st.header(f"👋 Xush kelibsiz, {username}!")
+    st.header(f"👋 Xush kelibsiz, {username.title()}!")
     st.markdown("---")
 
-    # 1. Statistika (Metrikalar)
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-card">
             <h3>📅 Bugungi Sana</h3>
-            <h2>{}</h2>
+            <h2>{datetime.datetime.now().strftime("%d-%m-%Y")}</h2>
         </div>
-        """.format(datetime.datetime.now().strftime("%d-%m")), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
     with col2:
         st.markdown("""
         <div class="metric-card">
-            <h3>⚡ AI bilan suhbatlar</h3>
-            <h2>Faol</h2>
+            <h3>⚡ Status</h3>
+            <h2>Online</h2>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
-        st.markdown("""
+        # Rolni chiroyli ko'rsatish
+        role_display = "Admin 🛡️" if st.session_state.role == "admin" else "O'quvchi 🎓"
+        st.markdown(f"""
         <div class="metric-card">
-            <h3>🏆 Darajangiz</h3>
-            <h2>Boshlovchi</h2>
+            <h3>🏆 Rolingiz</h3>
+            <h2>{role_display}</h2>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("---")
-
-    # 2. Kun hikmati (Random Motivatsiya)
+    
     quotes = [
         "Bilim — bu kuch! 🚀",
         "Kodni xato qilishdan qo'rqma, xato — bu ustoz. 💻",
@@ -196,21 +201,14 @@ def show_dashboard(username):
     ]
     st.info(f"💡 **Kun hikmati:** {random.choice(quotes)}")
 
-    # 3. Biz haqimizda
-    with st.expander("ℹ️ Loyiha haqida (Biz kimmiz?)"):
+    with st.expander("ℹ️ Loyiha haqida"):
         st.write("""
         **Zukko AI** — bu O'zbekistondagi eng zamonaviy ta'lim yordamchisi.
-        
-        **Bizning maqsadimiz:**
-        - Har bir o'quvchiga shaxsiy AI o'qituvchi berish.
-        - Ta'limni qiziqarli va interaktiv qilish.
-        - 24/7 davomida savollaringizga javob berish.
-        
-        *Loyiha muallifi: [Sizning Ismingiz]*
+        Admin Panel va Sun'iy Intellekt integratsiyasi.
         """)
 
 # ==========================================
-# 🖥️ ASOSIY DASTUR LOGIKASI
+# 🖥️ ASOSIY DASTUR
 # ==========================================
 
 def main():
@@ -222,36 +220,36 @@ def main():
     # --- LOGIN OYNASI ---
     if not st.session_state.logged_in:
         st.title("🎓 Zukko AI Kirish")
-        menu = ["Kirish", "Ro'yxatdan o'tish"]
-        choice = st.sidebar.selectbox("Menyu", menu)
-
-        if choice == "Kirish":
-            username = st.text_input("Login")
-            password = st.text_input("Parol", type='password')
+        
+        tab1, tab2 = st.tabs(["Kirish", "Ro'yxatdan o'tish"])
+        
+        with tab1:
+            username = st.text_input("Login", key="login_user")
+            password = st.text_input("Parol", type='password', key="login_pass")
             if st.button("Kirish"):
                 result = login_user(username, password)
                 if result:
                     st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.session_state.role = result[0][2]
+                    st.session_state.username = result[0][0] # Bazadagi to'g'ri nom
+                    st.session_state.role = result[0][2]     # Bazadagi rol
                     add_log(username, "Kirdi")
                     st.rerun()
                 else:
-                    st.error("Xato login!")
+                    st.error("Login yoki parol xato!")
 
-        elif choice == "Ro'yxatdan o'tish":
-            new_user = st.text_input("Yangi Login")
-            new_pass = st.text_input("Yangi Parol", type='password')
+        with tab2:
+            new_user = st.text_input("Yangi Login", key="reg_user")
+            new_pass = st.text_input("Yangi Parol", type='password', key="reg_pass")
             if st.button("Yaratish"):
                 if add_user(new_user, new_pass):
-                    st.success("Yaratildi! Kiring.")
+                    st.success("Yaratildi! Endi 'Kirish' bo'limidan kiring.")
                     add_log(new_user, "Ro'yxatdan o'tdi")
                 else:
-                    st.error("Login band!")
+                    st.error("Bu login band!")
 
     # --- TIZIM ICHIDA ---
     else:
-        # Sidebar menyu
+        # Sidebar
         with st.sidebar:
             st.title("Zukko AI")
             st.caption(f"Foydalanuvchi: {st.session_state.username}")
@@ -260,7 +258,7 @@ def main():
             page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🛡️ Admin Panel"])
             
             st.markdown("---")
-            if st.button("Chiqish"):
+            if st.button("Chiqish 🚪"):
                 st.session_state.logged_in = False
                 st.rerun()
 
@@ -268,14 +266,20 @@ def main():
         if page == "🏠 Dashboard":
             show_dashboard(st.session_state.username)
 
-        # 2. ADMIN PANEL (Faqat Adminga)
+        # 2. ADMIN PANEL
         elif page == "🛡️ Admin Panel":
+            # Admin ekanligini tekshirish (aniq tekshirish)
             if st.session_state.role == "admin":
-                st.header("Admin Panel")
-                st.dataframe(view_all_users())
-                st.dataframe(view_logs())
+                st.header("🛡️ Admin Boshqaruv Paneli")
+                
+                tab_users, tab_logs = st.tabs(["Foydalanuvchilar", "Loglar"])
+                with tab_users:
+                    st.dataframe(view_all_users(), use_container_width=True)
+                with tab_logs:
+                    st.dataframe(view_logs(), use_container_width=True)
             else:
-                st.warning("Siz Admin emassiz! 🚫")
+                st.error("⛔ Siz Admin emassiz! Bu bo'limga kirish taqiqlangan.")
+                st.image("https://cdn-icons-png.flaticon.com/512/6897/6897039.png", width=100)
 
         # 3. AI CHAT
         elif page == "🤖 AI Chat":
@@ -293,20 +297,19 @@ def main():
                 "4-sinf": {"role": "IT Ustoz", "prompt": "Ingliz tili va IT o'rgat."}
             }
             
-            # Chat tarixi
             if "messages" not in st.session_state: st.session_state.messages = []
             
-            # Tozalash va Test tugmalari
-            c1, c2 = st.columns([1, 5])
-            with c1:
+            # Tugmalar paneli
+            col1, col2 = st.columns([1, 4])
+            with col1:
                 if st.button("🗑️ Tozalash"):
                     st.session_state.messages = []
                     st.rerun()
-            with c2:
+            with col2:
                 if st.button("📝 Test tuzish"):
                     st.session_state.messages.append({"role": "user", "content": "Mavzu bo'yicha 3 ta test tuzib ber."})
 
-            # Tarixni chiqarish
+            # Chat tarixi
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
@@ -331,7 +334,6 @@ def main():
                                 placeholder.markdown(full_text + "▌")
                         placeholder.markdown(full_text)
                         
-                        # Ovoz chiqarish
                         audio = text_to_audio(full_text)
                         if audio: st.audio(audio, format="audio/mp3")
                 
