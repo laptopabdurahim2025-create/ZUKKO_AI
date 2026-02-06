@@ -1,14 +1,13 @@
 import streamlit as st
 import io
 import random
-import requests # <--- YANGI KUTUBXONA
 import time
 
-# ⚠️ Streamlit Secrets dan API keyni olish
+# ⚠️ Streamlit Secrets
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except:
-    st.error("GROQ_API_KEY topilmadi! .streamlit/secrets.toml faylini tekshiring.")
+    st.error("GROQ_API_KEY topilmadi!")
     st.stop()
 
 from openai import OpenAI
@@ -19,8 +18,51 @@ import pandas as pd
 from gtts import gTTS
 
 MODEL_NAME = "llama-3.3-70b-versatile"
+LOGO_URL = "https://i.imgur.com/eB4G86l.png"  # SIZNING YANGI LOGOINGIZ
 
-st.set_page_config(page_title="Zukko AI", page_icon="⚡", layout="wide")
+# Page config
+st.set_page_config(page_title="Sinai AI", page_icon=LOGO_URL, layout="wide")
+
+# ==========================================
+# 🎨 DIZAYN (CSS)
+# ==========================================
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(to right, #ece9e6, #ffffff); }
+    
+    /* Login oynasi */
+    .login-container {
+        background-color: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        text-align: center;
+        border-top: 5px solid #764ba2;
+    }
+    
+    /* Dashboard kartalari */
+    .dashboard-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        text-align: center;
+        flex: 1;
+        transition: transform 0.3s;
+    }
+    .dashboard-card:hover { transform: translateY(-5px); }
+    .card-title { color: #888; font-size: 14px; font-weight: 600; }
+    .card-value { color: #2c3e50; font-size: 24px; font-weight: bold; }
+    
+    /* Chat bubbles */
+    .stChatMessage {
+        border-radius: 12px;
+        border: 1px solid #eee;
+        background-color: white;
+    }
+    div[data-testid="stChatMessage"][data-author="user"] { background-color: #f3e5f5; }
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 🗄️ BAZA (BACKEND)
@@ -89,7 +131,7 @@ if "ADMIN_PASSWORD" in st.secrets:
     add_user("admin", real_pass, "admin")
 
 # ==========================================
-# 🎵 OVOZ FUNKSIYASI
+# 🎵 OVOZ VA AI
 # ==========================================
 def text_to_audio(text):
     try:
@@ -101,32 +143,6 @@ def text_to_audio(text):
     except:
         return None
 
-# ==========================================
-# 🎨 RASSOM FUNKSIYASI (YANGILANGAN)
-# ==========================================
-def generate_image(prompt):
-    """
-    Rasm yaratish uchun Pollinations AI API dan foydalanamiz.
-    Bu safar requests orqali to'g'ridan-to'g'ri yuklab olamiz.
-    """
-    # Promptdagi bo'sh joylarni to'g'irlash
-    final_prompt = prompt.replace(" ", "%20")
-    # Tasodifiy raqam qo'shamiz (keshlanib qolmasligi uchun)
-    seed = random.randint(1, 10000)
-    url = f"https://image.pollinations.ai/prompt/{final_prompt}?nospam={seed}"
-    
-    try:
-        response = requests.get(url, timeout=10) # 10 soniya kutamiz
-        if response.status_code == 200:
-            return response.content # Rasmning bayt kodi
-        else:
-            return None
-    except:
-        return None
-
-# ==========================================
-# 🧠 AI ENGINE
-# ==========================================
 class ZukkoEngine:
     def __init__(self):
         self.client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
@@ -146,45 +162,54 @@ class ZukkoEngine:
             return str(e)
 
 # ==========================================
-# 🎨 DIZAYN (CSS)
-# ==========================================
-st.markdown("""
-<style>
-    .metric-card {
-        background-color: rgba(128, 128, 128, 0.1);
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        text-align: center;
-        margin-bottom: 10px;
-    }
-    .stChatMessage {
-        background-color: transparent;
-        border: 1px solid rgba(128, 128, 128, 0.2);
-    }
-    div[data-testid="stChatMessage"][data-author="user"] {
-        background-color: rgba(76, 175, 80, 0.1);
-    }
-    div[data-testid="stChatMessage"][data-author="assistant"] {
-        background-color: rgba(33, 150, 243, 0.1);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ==========================================
-# 🏠 DASHBOARD
+# 🏠 DASHBOARD (LOGO BILAN)
 # ==========================================
 def show_dashboard(username):
-    st.header(f"👋 Xush kelibsiz, {username.title()}!")
-    st.markdown("---")
+    # HEADER: LOGO VA SALOMLASHISH (FLEXBOX)
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; color: white; margin-bottom: 20px; display: flex; align-items: center; gap: 20px;">
+        <img src="{LOGO_URL}" style="width: 120px; border-radius: 10px;">
+        <div>
+            <h1 style="color: white; margin:0;">Salom, {username.title()}! 👋</h1>
+            <p style="margin:5px 0 0 0; opacity: 0.9;">Bugun nimani o'rganamiz?</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # KARTALAR
     col1, col2, col3 = st.columns(3)
+    
     with col1:
-        st.markdown(f"""<div class="metric-card"><h3>📅 Sana</h3><h2>{datetime.datetime.now().strftime("%d-%m-%Y")}</h2></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="dashboard-card" style="border-bottom: 4px solid #3498db;">
+            <div style="font-size:30px">📅</div>
+            <div class="card-title">Sana</div>
+            <div class="card-value">{datetime.datetime.now().strftime("%d.%m.%Y")}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
     with col2:
-        st.markdown("""<div class="metric-card"><h3>⚡ Status</h3><h2>Online</h2></div>""", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="dashboard-card" style="border-bottom: 4px solid #2ecc71;">
+            <div style="font-size:30px">⚡</div>
+            <div class="card-title">Tizim holati</div>
+            <div class="card-value">Online</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col3:
-        role_display = "Admin 🛡️" if st.session_state.role == "admin" else "O'quvchi 🎓"
-        st.markdown(f"""<div class="metric-card"><h3>🏆 Rolingiz</h3><h2>{role_display}</h2></div>""", unsafe_allow_html=True)
+        role_name = "Admin" if st.session_state.role == "admin" else "O'quvchi"
+        st.markdown(f"""
+        <div class="dashboard-card" style="border-bottom: 4px solid #9b59b6;">
+            <div style="font-size:30px">🏆</div>
+            <div class="card-title">Daraja</div>
+            <div class="card-value">{role_name}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # HIKMAT
+    quotes = ["Bilim — aqlning chirog'i.", "Harakat qilsang, albatta yetasan.", "Kelajak bugun yaratiladi."]
+    st.info(f"💡 **Kun hikmati:** {random.choice(quotes)}")
 
 # ==========================================
 # 🖥️ ASOSIY DASTUR
@@ -196,37 +221,53 @@ def main():
         st.session_state.username = ""
         st.session_state.role = ""
 
+    # --- LOGIN OYNASI ---
     if not st.session_state.logged_in:
-        st.title("🎓 Zukko AI Kirish")
-        tab1, tab2 = st.tabs(["Kirish", "Ro'yxatdan o'tish"])
-        with tab1:
-            username = st.text_input("Login", key="login_user")
-            password = st.text_input("Parol", type='password', key="login_pass")
-            if st.button("Kirish"):
-                result = login_user(username, password)
-                if result:
-                    st.session_state.logged_in = True
-                    st.session_state.username = result[0][0] 
-                    st.session_state.role = result[0][2]     
-                    add_log(username, "Kirdi")
-                    st.rerun()
-                else:
-                    st.error("Login xato!")
-        with tab2:
-            new_user = st.text_input("Yangi Login", key="reg_user")
-            new_pass = st.text_input("Yangi Parol", type='password', key="reg_pass")
-            if st.button("Yaratish"):
-                if add_user(new_user, new_pass):
-                    st.success("Yaratildi!")
-                    add_log(new_user, "Ro'yxatdan o'tdi")
-                else:
-                    st.error("Login band!")
+        col_left, col_center, col_right = st.columns([1, 2, 1])
 
+        with col_center:
+            # Login tepasida LOGO
+            st.image(LOGO_URL, width=150) 
+            st.markdown("""
+            <div class="login-container">
+                <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">SINAI AI</div>
+                <div style="color: gray;">Kelajak ta'lim platformasi</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            tab1, tab2 = st.tabs(["🔑 Kirish", "📝 Ro'yxatdan o'tish"])
+            
+            with tab1:
+                username = st.text_input("Login", key="login_user")
+                password = st.text_input("Parol", type='password', key="login_pass")
+                if st.button("Kirish", use_container_width=True):
+                    result = login_user(username, password)
+                    if result:
+                        st.session_state.logged_in = True
+                        st.session_state.username = result[0][0]
+                        st.session_state.role = result[0][2]
+                        add_log(username, "Kirdi")
+                        st.rerun()
+                    else:
+                        st.error("Login xato!")
+
+            with tab2:
+                new_user = st.text_input("Yangi Login", key="reg_user")
+                new_pass = st.text_input("Yangi Parol", type='password', key="reg_pass")
+                if st.button("Yaratish", use_container_width=True):
+                    if add_user(new_user, new_pass):
+                        st.success("Muvaffaqiyatli!")
+                    else:
+                        st.error("Login band!")
+
+    # --- TIZIM ICHIDA ---
     else:
         with st.sidebar:
-            st.title("Zukko AI")
-            st.caption(f"Foydalanuvchi: {st.session_state.username}")
-            page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🎨 AI Rassom", "🛡️ Admin Panel"])
+            # SIDEBAR LOGO
+            st.image(LOGO_URL, width=120)
+            st.caption(f"👤 {st.session_state.username}")
+            
+            page = st.radio("Menyu:", ["🏠 Dashboard", "🤖 AI Chat", "🛡️ Admin Panel"])
             st.markdown("---")
             if st.button("Chiqish 🚪"):
                 st.session_state.logged_in = False
@@ -238,43 +279,24 @@ def main():
         elif page == "🛡️ Admin Panel":
             if st.session_state.role == "admin":
                 st.header("🛡️ Admin Panel")
-                st.dataframe(view_all_users(), use_container_width=True)
-                st.dataframe(view_logs(), use_container_width=True)
+                t1, t2 = st.tabs(["Userlar", "Loglar"])
+                with t1: st.dataframe(view_all_users(), use_container_width=True)
+                with t2: st.dataframe(view_logs(), use_container_width=True)
             else:
-                st.error("⛔ Siz Admin emassiz!")
-
-        # --- YANGILANGAN RASSOM ---
-        elif page == "🎨 AI Rassom":
-            st.header("🎨 AI Rassom")
-            st.info("Istalgan narsani yozing, sun'iy intellekt chizib beradi.")
-            
-            img_prompt = st.text_input("Nima chizamiz?", placeholder="Masalan: Future city, Flying cat...")
-            
-            if st.button("Chizish 🖌️"):
-                if img_prompt:
-                    with st.spinner("Rasm chizilmoqda..."):
-                        # Yangi funksiya orqali chaqiramiz
-                        image_data = generate_image(img_prompt)
-                        
-                        if image_data:
-                            st.image(image_data, caption=f"Natija: {img_prompt}", use_container_width=True)
-                            add_log(st.session_state.username, f"Rasm chizdi: {img_prompt}")
-                            st.balloons() # Muvaffaqiyatli bo'lsa sharlar chiqadi
-                        else:
-                            st.error("Uzr, rasm chizishda xatolik bo'ldi. Qayta urinib ko'ring.")
-                else:
-                    st.warning("Iltimos, avval biror narsa yozing!")
+                st.error("⛔ Faqat Admin uchun!")
 
         elif page == "🤖 AI Chat":
-            st.subheader("🤖 AI bilan suhbat")
-            mode_choice = st.selectbox("Mavzu:", ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"])
+            st.subheader("🤖 Sinai AI Chat")
+            mode_choice = st.selectbox("Mavzu:", ["🌐 Universal", "1-sinf", "2-sinf", "3-sinf", "4-sinf"])
+            
             prompts = {
-                "🌐 Universal Yordamchi": {"role": "AI", "prompt": "Sen Zukko AIsan."},
+                "🌐 Universal": {"role": "AI", "prompt": "Sen Sinai AIsan."},
                 "1-sinf": {"role": "O'qituvchi", "prompt": "1-sinf bolaga sodda gapir."},
                 "2-sinf": {"role": "Matematik", "prompt": "Matematika o'rgat."},
                 "3-sinf": {"role": "Tabiatshunos", "prompt": "Tabiat haqida gapir."},
                 "4-sinf": {"role": "IT Ustoz", "prompt": "IT o'rgat."}
             }
+            
             if "messages" not in st.session_state: st.session_state.messages = []
             
             c1, c2 = st.columns([1, 4])
@@ -283,7 +305,7 @@ def main():
                     st.session_state.messages = []
                     st.rerun()
             with c2:
-                if st.button("📝 Test"):
+                if st.button("📝 Test tuzish"):
                     st.session_state.messages.append({"role": "user", "content": "3 ta test tuz."})
 
             for msg in st.session_state.messages:
