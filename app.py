@@ -18,7 +18,7 @@ import pandas as pd
 from gtts import gTTS
 
 MODEL_NAME = "llama-3.3-70b-versatile"
-LOGO_URL = "https://i.imgur.com/eB4G86l.png"  # SIZNING YANGI LOGOINGIZ
+LOGO_URL = "logo.png"
 
 # Page config
 st.set_page_config(page_title="Sinai AI", page_icon=LOGO_URL, layout="wide")
