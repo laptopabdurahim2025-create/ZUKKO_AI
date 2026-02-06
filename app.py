@@ -1,7 +1,6 @@
 import streamlit as st
 import io
 import random
-import requests
 import time
 from openai import OpenAI
 import sqlite3
@@ -83,6 +82,7 @@ def view_logs():
 
 init_db()
 
+# Admin parolini serverdan olamiz
 if "ADMIN_PASSWORD" in st.secrets:
     real_pass = st.secrets["ADMIN_PASSWORD"]
     add_user("admin", real_pass, "admin")
@@ -101,22 +101,6 @@ def text_to_audio(text):
         return None
 
 # ==========================================
-# 🎨 RASSOM FUNKSIYASI
-# ==========================================
-def generate_image(prompt):
-    final_prompt = prompt.replace(" ", "%20")
-    seed = random.randint(1, 10000)
-    url = f"https://image.pollinations.ai/prompt/{final_prompt}?nospam={seed}"
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            return response.content
-        else:
-            return None
-    except:
-        return None
-
-# ==========================================
 # 🧠 AI ENGINE
 # ==========================================
 class ZukkoEngine:
@@ -129,7 +113,7 @@ class ZukkoEngine:
             stream = self.client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=full_history,
-                temperature=0.7,
+                temperature=0.6,
                 max_tokens=1500,
                 stream=True,
             )
@@ -142,6 +126,7 @@ class ZukkoEngine:
 # ==========================================
 st.markdown("""
 <style>
+    /* Dashboard */
     .metric-card {
         background-color: rgba(128, 128, 128, 0.1);
         padding: 20px;
@@ -150,6 +135,7 @@ st.markdown("""
         text-align: center;
         margin-bottom: 10px;
     }
+    /* Chat */
     .stChatMessage {
         background-color: transparent;
         border: 1px solid rgba(128, 128, 128, 0.2);
@@ -178,6 +164,15 @@ def show_dashboard(username):
         role_display = "Admin 🛡️" if st.session_state.role == "admin" else "O'quvchi 🎓"
         st.markdown(f"""<div class="metric-card"><h3>🏆 Rolingiz</h3><h2>{role_display}</h2></div>""", unsafe_allow_html=True)
 
+    # Kun hikmati
+    quotes = [
+        "Language is the road map of a culture. 🌍",
+        "Kod — bu kelajak tili. 💻",
+        "Ona tili — millatning ruhi. 🇺🇿",
+        "Bilim olishdan to'xtama! 🚀"
+    ]
+    st.info(f"💡 **Kun hikmati:** {random.choice(quotes)}")
+
 # ==========================================
 # 🖥️ ASOSIY DASTUR
 # ==========================================
@@ -188,6 +183,7 @@ def main():
         st.session_state.username = ""
         st.session_state.role = ""
 
+    # --- KIRISH QISMI ---
     if not st.session_state.logged_in:
         st.title("🎓 Zukko AI Kirish")
         tab1, tab2 = st.tabs(["Kirish", "Ro'yxatdan o'tish"])
@@ -214,11 +210,15 @@ def main():
                 else:
                     st.error("Login band!")
 
+    # --- TIZIM ICHIDA ---
     else:
         with st.sidebar:
             st.title("Zukko AI")
             st.caption(f"Foydalanuvchi: {st.session_state.username}")
-            page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🎨 AI Rassom", "🛡️ Admin Panel"])
+            
+            # Rassom olib tashlandi, fanlar Chat ichiga ko'chdi
+            page = st.radio("Bo'limlar:", ["🏠 Dashboard", "🤖 AI Chat", "🛡️ Admin Panel"])
+            
             st.markdown("---")
             if st.button("Chiqish 🚪"):
                 st.session_state.logged_in = False
@@ -235,84 +235,64 @@ def main():
             else:
                 st.error("⛔ Siz Admin emassiz!")
 
-        elif page == "🎨 AI Rassom":
-            st.header("🎨 AI Rassom")
-            st.info("Istalgan narsani yozing, sun'iy intellekt chizib beradi.")
-            img_prompt = st.text_input("Nima chizamiz?", placeholder="Masalan: Future city, Flying cat...")
-            if st.button("Chizish 🖌️"):
-                if img_prompt:
-                    with st.spinner("Rasm chizilmoqda..."):
-                        image_data = generate_image(img_prompt)
-                        if image_data:
-                            st.image(image_data, caption=f"Natija: {img_prompt}", use_container_width=True)
-                            add_log(st.session_state.username, f"Rasm chizdi: {img_prompt}")
-                            st.balloons()
-                        else:
-                            st.error("Xatolik bo'ldi.")
-                else:
-                    st.warning("Yozishni unutmang!")
-
         # ==========================================
-        # 🤖 YANGILANGAN AI CHAT (FANLAR BILAN)
+        # 🤖 AI CHAT (YANGILANGAN TIZIM)
         # ==========================================
         elif page == "🤖 AI Chat":
-            st.subheader("🤖 AI bilan dars")
+            st.subheader("🤖 AI Mentor")
             
-            # 1. SINF VA FANNI TANLASH
-            col_sel1, col_sel2 = st.columns(2)
+            # Asosiy yo'nalishni tanlash
+            mentor_type = st.selectbox("Yordamchi turini tanlang:", [
+                "🌐 Universal Yordamchi",
+                "🇬🇧 Ingliz tili (Speaking)",
+                "💻 IT va Dasturlash",
+                "📚 Ona tili va Adabiyot",
+                "📐 Matematika va Fizika",
+                "🏫 Boshlang'ich Sinflar (1-4)"
+            ])
+
+            # Promptlarni sozlash
+            system_prompt = ""
+            welcome_msg = ""
+
+            if mentor_type == "🌐 Universal Yordamchi":
+                system_prompt = "Sen Zukko AIsan. O'zbekistondagi eng aqlli yordamchisan. Har qanday mavzuda aniq va do'stona javob ber."
             
-            with col_sel1:
-                sinf = st.selectbox("Sinfni tanlang:", ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"])
+            elif mentor_type == "🇬🇧 Ingliz tili (Speaking)":
+                system_prompt = "You are an English teacher. Speak mostly in English, but explain difficult grammar in Uzbek. Correct the user's mistakes politely. Help with IELTS and speaking."
             
-            with col_sel2:
-                # Agar Universal bo'lmasa, Fanni tanlaydi
-                if sinf != "🌐 Universal Yordamchi":
-                    fan = st.selectbox("Fanni tanlang:", 
-                        ["Matematika", "Ona tili", "Ingliz tili", "IT (Kompyuter)", "Fizika (Boshlang'ich)", "Biologiya (Tabiat)"])
-                else:
-                    fan = "Umumiy"
+            elif mentor_type == "💻 IT va Dasturlash":
+                system_prompt = "Sen Senior Dasturchisan (IT Mentor). Python, Web dasturlash, Kompyuter savodxonligi bo'yicha dars berasan. Kod yozishda yordam ber."
+            
+            elif mentor_type == "📚 Ona tili va Adabiyot":
+                system_prompt = "Sen Ona tili va Adabiyot o'qituvchisisan. Grammatika qoidalari, Alisher Navoiy g'azallari va to'g'ri yozishni o'rgat."
+            
+            elif mentor_type == "📐 Matematika va Fizika":
+                system_prompt = "Sen aniq fanlar ustozisan. Matematik misollar, Fizika qonunlarini hayotiy misollar bilan tushuntir."
+            
+            elif mentor_type == "🏫 Boshlang'ich Sinflar (1-4)":
+                grade = st.selectbox("Sinfni tanlang:", ["1-sinf", "2-sinf", "3-sinf", "4-sinf"])
+                system_prompt = f"Sen {grade} o'qituvchisisan. Bolalar tilida, juda sodda va emojilar bilan gapir. Ularga o'qish, yozish va odobnoma o'rgat."
 
-            # 2. PROMPTNI SOZLASH (Miya)
-            if sinf == "🌐 Universal Yordamchi":
-                system_prompt = "Sen Zukko AIsan. O'zbekistondagi eng aqlli yordamchisan. Istalgan mavzuda aniq va lo'nda javob ber."
-                welcome_msg = "Salom! Men sizning universal yordamchingizman. Nima haqida gaplashamiz?"
-            else:
-                # Fanlarga mos promptlar
-                subjects_logic = {
-                    "Matematika": "Sen matematika o'qituvchisisan. Bolalarga misollarni, karra jadvalini va mantiqiy masalalarni qiziqarli tushuntir.",
-                    "Ona tili": "Sen ona tili o'qituvchisisan. Alifbo, to'g'ri yozish qoidalari va chiroyli so'zlashishni o'rgat.",
-                    "Ingliz tili": "Sen ingliz tili o'qituvchisisan. Bolalarga yangi so'zlarni o'rgat va ular bilan oddiy inglizcha dialog qur.",
-                    "IT (Kompyuter)": "Sen IT o'qituvchisisan. Kompyuter qanday ishlashini, xavfsizlikni va dasturlashni sodda tilda tushuntir.",
-                    "Fizika (Boshlang'ich)": "Sen bolalar uchun fizika o'qituvchisisan. Murakkab formulalar emas, tabiat hodisalarini (nega yomg'ir yog'adi, nega koptok tushadi) oddiy tushuntir.",
-                    "Biologiya (Tabiat)": "Sen tabiatshunoslik o'qituvchisisan. Hayvonlar, o'simliklar va inson tanasi haqida qiziqarli faktlar aytib ber."
-                }
-                
-                base_prompt = subjects_logic.get(fan, "Sen o'qituvchisan.")
-                system_prompt = f"Sen {sinf} o'quvchilari uchun {fan} fanidan dars o'tmoqdasan. {base_prompt} Javoblaringda ko'p emoji ishlat va bolalar tilida sodda gapir."
-                welcome_msg = f"Salom! Men {sinf} uchun {fan} o'qituvchisiman. Darsni boshlaymizmi?"
+            # Ekranda ma'lumot
+            st.success(f"📌 **Tanlandi:** {mentor_type}")
 
-            st.info(f"💡 **Rejim:** {sinf} | **Fan:** {fan}")
-
-            # 3. CHAT TARIXI
+            # Chat tarixi
             if "messages" not in st.session_state: st.session_state.messages = []
             
-            # Tozalash va Test
             c1, c2 = st.columns([1, 4])
             with c1:
-                if st.button("🗑️ Doskani tozalash"):
+                if st.button("🗑️ Tozalash"):
                     st.session_state.messages = []
-                    # Birinchi salomni qo'shamiz
-                    st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
                     st.rerun()
             with c2:
                 if st.button("📝 Test tuzish"):
-                    st.session_state.messages.append({"role": "user", "content": f"{fan} fanidan mavzuga oid 3 ta test tuzib ber (A,B,C variantlari bilan)."})
+                    st.session_state.messages.append({"role": "user", "content": "Mavzu bo'yicha 3 ta test tuzib ber."})
 
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-            # 4. INPUT
-            if prompt := st.chat_input("Savol bering yoki javob yozing..."):
+            if prompt := st.chat_input("Savolingizni yozing..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"): st.markdown(prompt)
 
@@ -330,8 +310,10 @@ def main():
                                 full_text += chunk.choices[0].delta.content
                                 placeholder.markdown(full_text + "▌")
                         placeholder.markdown(full_text)
+                        
                         audio = text_to_audio(full_text)
                         if audio: st.audio(audio, format="audio/mp3")
+                
                 st.session_state.messages.append({"role": "assistant", "content": full_text})
 
 if __name__ == "__main__":
