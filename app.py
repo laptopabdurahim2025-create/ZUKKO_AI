@@ -1,22 +1,21 @@
 import streamlit as st
 import io
 import random
-import requests # <--- YANGI KUTUBXONA
+import requests
 import time
-
-# ⚠️ Streamlit Secrets dan API keyni olish
-try:
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-except:
-    st.error("GROQ_API_KEY topilmadi! .streamlit/secrets.toml faylini tekshiring.")
-    st.stop()
-
 from openai import OpenAI
 import sqlite3
 import hashlib
 import datetime
 import pandas as pd
 from gtts import gTTS
+
+# ⚠️ Streamlit Secrets
+try:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    st.error("GROQ_API_KEY topilmadi! .streamlit/secrets.toml faylini tekshiring.")
+    st.stop()
 
 MODEL_NAME = "llama-3.3-70b-versatile"
 
@@ -102,23 +101,16 @@ def text_to_audio(text):
         return None
 
 # ==========================================
-# 🎨 RASSOM FUNKSIYASI (YANGILANGAN)
+# 🎨 RASSOM FUNKSIYASI
 # ==========================================
 def generate_image(prompt):
-    """
-    Rasm yaratish uchun Pollinations AI API dan foydalanamiz.
-    Bu safar requests orqali to'g'ridan-to'g'ri yuklab olamiz.
-    """
-    # Promptdagi bo'sh joylarni to'g'irlash
     final_prompt = prompt.replace(" ", "%20")
-    # Tasodifiy raqam qo'shamiz (keshlanib qolmasligi uchun)
     seed = random.randint(1, 10000)
     url = f"https://image.pollinations.ai/prompt/{final_prompt}?nospam={seed}"
-    
     try:
-        response = requests.get(url, timeout=10) # 10 soniya kutamiz
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            return response.content # Rasmning bayt kodi
+            return response.content
         else:
             return None
     except:
@@ -243,53 +235,84 @@ def main():
             else:
                 st.error("⛔ Siz Admin emassiz!")
 
-        # --- YANGILANGAN RASSOM ---
         elif page == "🎨 AI Rassom":
             st.header("🎨 AI Rassom")
             st.info("Istalgan narsani yozing, sun'iy intellekt chizib beradi.")
-            
             img_prompt = st.text_input("Nima chizamiz?", placeholder="Masalan: Future city, Flying cat...")
-            
             if st.button("Chizish 🖌️"):
                 if img_prompt:
                     with st.spinner("Rasm chizilmoqda..."):
-                        # Yangi funksiya orqali chaqiramiz
                         image_data = generate_image(img_prompt)
-                        
                         if image_data:
                             st.image(image_data, caption=f"Natija: {img_prompt}", use_container_width=True)
                             add_log(st.session_state.username, f"Rasm chizdi: {img_prompt}")
-                            st.balloons() # Muvaffaqiyatli bo'lsa sharlar chiqadi
+                            st.balloons()
                         else:
-                            st.error("Uzr, rasm chizishda xatolik bo'ldi. Qayta urinib ko'ring.")
+                            st.error("Xatolik bo'ldi.")
                 else:
-                    st.warning("Iltimos, avval biror narsa yozing!")
+                    st.warning("Yozishni unutmang!")
 
+        # ==========================================
+        # 🤖 YANGILANGAN AI CHAT (FANLAR BILAN)
+        # ==========================================
         elif page == "🤖 AI Chat":
-            st.subheader("🤖 AI bilan suhbat")
-            mode_choice = st.selectbox("Mavzu:", ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"])
-            prompts = {
-                "🌐 Universal Yordamchi": {"role": "AI", "prompt": "Sen Zukko AIsan."},
-                "1-sinf": {"role": "O'qituvchi", "prompt": "1-sinf bolaga sodda gapir."},
-                "2-sinf": {"role": "Matematik", "prompt": "Matematika o'rgat."},
-                "3-sinf": {"role": "Tabiatshunos", "prompt": "Tabiat haqida gapir."},
-                "4-sinf": {"role": "IT Ustoz", "prompt": "IT o'rgat."}
-            }
+            st.subheader("🤖 AI bilan dars")
+            
+            # 1. SINF VA FANNI TANLASH
+            col_sel1, col_sel2 = st.columns(2)
+            
+            with col_sel1:
+                sinf = st.selectbox("Sinfni tanlang:", ["🌐 Universal Yordamchi", "1-sinf", "2-sinf", "3-sinf", "4-sinf"])
+            
+            with col_sel2:
+                # Agar Universal bo'lmasa, Fanni tanlaydi
+                if sinf != "🌐 Universal Yordamchi":
+                    fan = st.selectbox("Fanni tanlang:", 
+                        ["Matematika", "Ona tili", "Ingliz tili", "IT (Kompyuter)", "Fizika (Boshlang'ich)", "Biologiya (Tabiat)"])
+                else:
+                    fan = "Umumiy"
+
+            # 2. PROMPTNI SOZLASH (Miya)
+            if sinf == "🌐 Universal Yordamchi":
+                system_prompt = "Sen Zukko AIsan. O'zbekistondagi eng aqlli yordamchisan. Istalgan mavzuda aniq va lo'nda javob ber."
+                welcome_msg = "Salom! Men sizning universal yordamchingizman. Nima haqida gaplashamiz?"
+            else:
+                # Fanlarga mos promptlar
+                subjects_logic = {
+                    "Matematika": "Sen matematika o'qituvchisisan. Bolalarga misollarni, karra jadvalini va mantiqiy masalalarni qiziqarli tushuntir.",
+                    "Ona tili": "Sen ona tili o'qituvchisisan. Alifbo, to'g'ri yozish qoidalari va chiroyli so'zlashishni o'rgat.",
+                    "Ingliz tili": "Sen ingliz tili o'qituvchisisan. Bolalarga yangi so'zlarni o'rgat va ular bilan oddiy inglizcha dialog qur.",
+                    "IT (Kompyuter)": "Sen IT o'qituvchisisan. Kompyuter qanday ishlashini, xavfsizlikni va dasturlashni sodda tilda tushuntir.",
+                    "Fizika (Boshlang'ich)": "Sen bolalar uchun fizika o'qituvchisisan. Murakkab formulalar emas, tabiat hodisalarini (nega yomg'ir yog'adi, nega koptok tushadi) oddiy tushuntir.",
+                    "Biologiya (Tabiat)": "Sen tabiatshunoslik o'qituvchisisan. Hayvonlar, o'simliklar va inson tanasi haqida qiziqarli faktlar aytib ber."
+                }
+                
+                base_prompt = subjects_logic.get(fan, "Sen o'qituvchisan.")
+                system_prompt = f"Sen {sinf} o'quvchilari uchun {fan} fanidan dars o'tmoqdasan. {base_prompt} Javoblaringda ko'p emoji ishlat va bolalar tilida sodda gapir."
+                welcome_msg = f"Salom! Men {sinf} uchun {fan} o'qituvchisiman. Darsni boshlaymizmi?"
+
+            st.info(f"💡 **Rejim:** {sinf} | **Fan:** {fan}")
+
+            # 3. CHAT TARIXI
             if "messages" not in st.session_state: st.session_state.messages = []
             
+            # Tozalash va Test
             c1, c2 = st.columns([1, 4])
             with c1:
-                if st.button("🗑️ Tozalash"):
+                if st.button("🗑️ Doskani tozalash"):
                     st.session_state.messages = []
+                    # Birinchi salomni qo'shamiz
+                    st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
                     st.rerun()
             with c2:
-                if st.button("📝 Test"):
-                    st.session_state.messages.append({"role": "user", "content": "3 ta test tuz."})
+                if st.button("📝 Test tuzish"):
+                    st.session_state.messages.append({"role": "user", "content": f"{fan} fanidan mavzuga oid 3 ta test tuzib ber (A,B,C variantlari bilan)."})
 
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-            if prompt := st.chat_input("Yozing..."):
+            # 4. INPUT
+            if prompt := st.chat_input("Savol bering yoki javob yozing..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"): st.markdown(prompt)
 
@@ -297,7 +320,7 @@ def main():
                     engine = ZukkoEngine()
                     placeholder = st.empty()
                     full_text = ""
-                    stream = engine.generate(st.session_state.messages, prompts[mode_choice]['prompt'])
+                    stream = engine.generate(st.session_state.messages, system_prompt)
                     
                     if isinstance(stream, str):
                         st.error(stream)
